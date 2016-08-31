@@ -28,7 +28,6 @@ def header_page():
     <meta charset="UTF-8">
     <title>Login Form</title>  
     <link rel="stylesheet" href="css/style.css">
-    <script src="js/prefixfree.min.js"></script>
   </head><body> """
 
 def footer_page():
