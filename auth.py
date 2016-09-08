@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #  auth.py                                          # # # # # # # # # #
@@ -7,24 +8,51 @@
 # Licensed under the Apache License, Version 2.0 (the "License");      #
 # you may not use this file except in compliance with the License.     #
 # You may obtain a copy of the License at
-# 
+#
 #    http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# 
-# # # # # # # 
- 
+#
+# # # # # # #
+## 08.09.2016 V. 1.08
+##
 
-import pyrad.packet, cgi, socket, sys, time
-import cgitb; cgitb.enable()
+import pyrad.packet
+import cgi
+
+import cgitb #debug
+cgitb.enable()
+
+import socket
+import sys
+import time
 from pyrad.client import Client
 from pyrad.dictionary import Dictionary
 import store
 import html_page
+import config
+
+form = cgi.FieldStorage()
+stage = form.getfirst("stage","counters")  # counters or login,logout
+mac = form.getvalue("mac", "00:00:00:00")
+ip = form.getfirst("ip", "0.0.0.0")
+
+incoming = form.getvalue("incoming", 0)
+outgoing = form.getvalue("outgoing", 0)
+
+gw_address = form.getvalue("gw_address",config.node_ip)
+gw_port = form.getvalue("gw_port",config.node_port)
+gw_id = form.getvalue("gw_id",config.node_name)
+url = form.getvalue("url",config.custom_url)
+
+token = form.getfirst("token") 
+user = form.getfirst("username")
+passwd = form.getfirst("password")
+
 
 ACCOUNT_STATUS_ERROR = -1
 ACCOUNT_STATUS_DENIED = 0
@@ -33,119 +61,144 @@ ACCOUNT_STATUS_VALIDATION = 5
 ACCOUNT_STATUS_VALIDATION_FAILED = 6
 ACCOUNT_STATUS_LOCKED = 254
 
-form = cgi.FieldStorage()
-stage = form.getfirst("stage") # counters or login,logout
-mac = form.getvalue("mac")
-ip = form.getfirst("ip","0.0.0.0")
-gw_address = form.getfirst("gw_address","0.0.0.0")
-gw_port = form.getvalue("gw_port",0)
-gw_id = form.getvalue("gw_id")
-incoming = form.getvalue("incoming",0)
-outgoing = form.getvalue("outgoing",0)
-url = form.getvalue("url","http://www.google.com")
-token = form.getfirst("token", None )
-user = form.getfirst("username",None)
-passwd = form.getfirst("password",None)
-
-server = "192.168.0.1"
-secret = "z87YAUJUfU4DQ"
-
-auth_response = ACCOUNT_STATUS_DENIED
-auth_message = ""
+radius_config = {
+    'server': config.radius_server,  # radius server
+    'secret': config.radius_secret ,  # radius secret key
+    'dict': Dictionary(config.radius_dictionary),
+}
 
 
 def SendPacket(srv, req):
     try:
         return srv.SendPacket(req)
     except pyrad.client.Timeout:
-        html_page.error_page( "RADIUS server does not reply")
+        html_page.error_page("RADIUS server does not reply")
         sys.exit(1)
-    except socket.error, error:
-        html_page.error_page( "Network error: " + str(error[1]) )
+    except socket.error as error:
+        html_page.error_page("Network error: " + str(error[1]))
         sys.exit(1)
 
-srv=Client(server = server,
-           secret = secret,
-           dict=Dictionary("dictionary"))
+srv = Client(**radius_config)
+auth_response = ACCOUNT_STATUS_DENIED
+auth_message = "User Access FAILL", ACCOUNT_STATUS_VALIDATION_FAILED
 
-if stage == "login" :
-        store_data = store.store_key(token) 
-        store_data["last_incoming"] = "0"
-        store_data["last_outgoing"] = "0"
-        store_data["session_start"] = time.time()
-        req=srv.CreateAuthPacket(code=pyrad.packet.AccessRequest, User_Name=store_data["username"])
-        req["Acct-Status-Type"]   = "Start"
-        req["User-Password"]      = req.PwCrypt(store_data["password"])
-        req["NAS-IP-Address"]     = server
-        req["NAS-Port"]           = gw_port
-        req["NAS-Port-Type"]      = "Wireless-802.11"
-        req["NAS-Identifier"]     = server
-        req["Acct-Session-Id"]    = token
-        req["Called-Station-Id"]  = gw_id
-        req["Framed-IP-Address"]  = ip
-        req["Service-Type"]  = 1
-        req["Acct-Delay-Time"]  = 0
+if (token):
+        if stage == "login":
+          store_data = store.store_key(token)
+          if store_data["username"]:
+            store_data["session_start"] = time.time()
+            req = srv.CreateAuthPacket(
+            code=pyrad.packet.AccessRequest,
+            User_Name=store_data["username"])
+            req["Acct-Status-Type"] = "Start"            
+            req["User-Password"] = req.PwCrypt(store_data["password"])
 
-        reply=SendPacket(srv, req)
-        auth_message = reply.code    
-        if reply.code==pyrad.packet.AccessAccept:        
-            auth_response = ACCOUNT_STATUS_ALLOWED
-            auth_message = " User is now log in ",reply.code
-            store_data["auth"] = True
-        elif reply.code==pyrad.packet.AccessReject:
-            auth_message = " User Access Reject ",reply.code
-            auth_response = ACCOUNT_STATUS_VALIDATION_FAILED
-        else :
-           auth_message = " An error occurred during the validation process ", reply.code
-           auth_response = ACCOUNT_STATUS_ERROR
-        store_data.save()
+            req["NAS-IP-Address"] = gw_address
+            req["NAS-Port"] = config.custom_nas_port
+            req["NAS-Port-Type"] = config.custom_nas_port_type
+            req["NAS-Identifier"] =  gw_id
+            req["Acct-Session-Id"] = token
+            req["Called-Station-Id"] = gw_id
+            req["Called-Station-Id"] = config.node_mac #MAC OF WIFIDOG "00-10-A4-23-19-C0"
+            req["Calling-Station-Id"] = mac #MAC OF USER OR IP "00-00-B4-23-19-C0"
+            req["Framed-IP-Address"] = ip
+            req["Service-Type"] = pyrad.packet.AccessRequest
+            req["Acct-Delay-Time"] = 0
+            req["Acct-Input-Octets"] = 0
+            req["Acct-Output-Octets"] = 0
 
-if stage == "counters" :
-    store_data = store.store_key(token)
-    req = srv.CreateAcctPacket(User_Name=store_data["username"])
-    req["Acct-Status-Type"]="Interim-Update"
-    req["Acct-Session-Id"]    = token
-    req["Framed-IP-Address"]= ip  
-    OutputGiga = int(incoming) - int(store_data["last_incoming"])
-    InputGiga = int(outgoing) - int(store_data["last_outgoing"])
-    req["Acct-Input-Gigawords"] = abs(OutputGiga)
-    req["Acct-Output-Gigawords"] = abs(InputGiga)
-    store_data["last_incoming"] = incoming
-    store_data["last_outgoing"] = outgoing
-    reply = SendPacket(srv, req)
-    auth_message = "Sending Alive packet", reply.code
-    auth_response = ACCOUNT_STATUS_ALLOWED
-    store_data.save()
+            reply = SendPacket(srv, req)    
+            if reply.code == pyrad.packet.AccessAccept:
+                auth_response = ACCOUNT_STATUS_ALLOWED
+                auth_message = " User is now log in ", reply.code
+                store_data["auth"] = True
+                for i in reply.keys():
+                    store_data[i] = reply[i][0]
+            elif reply.code == pyrad.packet.AccessReject:
+                auth_message = " User Access Reject ", reply.code
+                auth_response = ACCOUNT_STATUS_VALIDATION_FAILED
+                store_data["auth"] = False
+            else:
+                auth_message = " An error occurred during the validation process ", reply.code
+                auth_response = ACCOUNT_STATUS_ERROR
+                store_data["auth"] = False    
+            store_data.save()
 
-if stage == "logout" :
-    store_data = store.store_key(token)
-    req = srv.CreateAcctPacket(User_Name=store_data["username"] )
-    req["NAS-IP-Address"]     = server
-    req["NAS-Port-Type"]      = "Wireless-802.11"
-    req["NAS-Port"]           = gw_port
-    req["Acct-Status-Type"]   = "Stop"
-    req["Acct-Terminate-Cause"] = "User-Request"
-    SessionTime = int(time.time() - store_data["session_start"])
-    req["Acct-Session-Time"] = abs(SessionTime)
-    req["NAS-Identifier"]     = server
-    req["Acct-Session-Id"]    = token
-    req["Called-Station-Id"]  = gw_id
-    req["Framed-IP-Address"]  = ip
-    OutputGiga = int(incoming) - int(store_data["last_incoming"])
-    InputGiga = int(outgoing) - int(store_data["last_outgoing"])
-    req["Acct-Input-Gigawords"] = abs(OutputGiga)
-    req["Acct-Output-Gigawords"] = abs(InputGiga)
-    store_data["last_incoming"] = incoming
-    store_data["last_outgoing"] = outgoing
+        if stage == "counters": ########     COUNTERS 
+          store_data = store.store_key(token)
+          maxoctets = abs(int(outgoing)+int(incoming))
 
-    reply = srv.SendPacket(req)
-    auth_response = ACCOUNT_STATUS_ALLOWED
-    auth_message = " User is now logged out ",reply.code
-    store_data["auth"] = False
-    #store_data.remove()
-    store_data.save()
+          req = srv.CreateAcctPacket(User_Name=store_data["username"])
+          req["Acct-Status-Type"] = "Interim-Update"
+          req["Acct-Session-Id"] = token
+          req["Acct-Input-Octets"] =  int(incoming)
+          req["Acct-Output-Octets"] = int(outgoing)
+          req["Acct-Delay-Time"] = 0
+          
+          req["NAS-IP-Address"] = gw_address
+          req["NAS-Port"] = config.custom_nas_port
+          req["NAS-Port-Type"] = config.custom_nas_port_type
+          req["NAS-Identifier"] =  gw_id
+          req["Acct-Session-Id"] = token
+          req["Called-Station-Id"] = gw_id
+          req["Called-Station-Id"] = config.node_mac #MAC OF WIFIDOG"00-10-A4-23-19-C0"
+          req["Calling-Station-Id"] = mac #MAC OF USER OR IP "00-00-B4-23-19-C0"
+          req["Framed-IP-Address"] = ip
+          
+          
+          SessionTime = int(time.time() - store_data["session_start"])
+          req["Acct-Session-Time"] = abs(SessionTime)
+          
+          reply = SendPacket(srv, req)
+            
+          if "ChilliSpot-Max-Total-Octets" in store_data:
+              if ( maxoctets >= store_data["ChilliSpot-Max-Total-Octets"] ):
+                        store_data["auth"] = False
+                        auth_response = ACCOUNT_STATUS_DENIED
+          if "Session-Timeout" in store_data:
+               if ( 0 >= int(store_data["Session-Timeout"])):
+                        store_data["auth"] = False
+                        auth_response = ACCOUNT_STATUS_DENIED
+          elif reply.code==pyrad.packet.AccountingResponse:
+               store_data["auth"] = True
+               auth_response = ACCOUNT_STATUS_ALLOWED
+          else:
+               store_data["auth"] = False
+               auth_response = ACCOUNT_STATUS_DENIED  
+          
+          auth_message = "Sending Alive packet", reply.code    
+          store_data.save()
 
+        if stage == "logout":########     STOP 
+            store_data = store.store_key(token)
+            req = srv.CreateAcctPacket(User_Name=store_data["username"])
+            req["NAS-IP-Address"] =  radius_config["server"]
+            
+            req["NAS-Port"] = config.custom_nas_port
+            req["NAS-Port-Type"] = config.custom_nas_port_type
+            
+            req["Acct-Status-Type"] = "Stop"
+            req["Acct-Terminate-Cause"] = "User-Request"
+            SessionTime = int(time.time() - store_data["session_start"])
+            req["Acct-Session-Time"] = abs(SessionTime)
+            req["NAS-Identifier"] =  gw_id
+            req["Acct-Session-Id"] = token
+            req["Called-Station-Id"] = gw_id
+            req["Framed-IP-Address"] = ip
+            
+            req["Acct-Input-Octets"] =  int(incoming)
+            req["Acct-Output-Octets"] = int(outgoing)
+            req["Acct-Delay-Time"] = 0
+            
+            reply = srv.SendPacket(req)
+            auth_response = ACCOUNT_STATUS_DENIED
+            auth_message = " User is now logged out ", reply.code
+            print "Attributes returned by server:"
+            for i in reply.keys():
+                print "%s: %s" % (i, reply[i])
+            store_data["auth"] = False
+            store_data.delete()
 
-print "Auth:",auth_response," "
-print "Messages:",auth_message[0],"\n"
-
+print 'Auth:', auth_response
+print 'Messages:', auth_message[0]," code:",auth_message[1]
+print ' '

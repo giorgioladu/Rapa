@@ -1,0 +1,26 @@
+[Mysql]
+server: 192.168.0.1
+port: 3306
+user:  radius
+password: password
+DB: radius
+## node table used for get statistcs of multiple wifidog gateway
+table: node #see Table node structure
+
+[Node]
+latitude = 39
+longitude = 9
+mac = XX:XX:XX:XX:XX:XX
+name = XXXXXXXXXXXX
+ip = 192.168.1.1
+port = 2060
+
+[Radius]
+server: 192.168.0.1 # radius server
+secret: secrets  # radius secret key
+dictionary: /usr/share/freeradius2/dictionary # radius dictionary
+
+[Custom]
+url: www.google.com
+nas_port: 29
+nas_port_type: Wireless - IEEE 802.22
