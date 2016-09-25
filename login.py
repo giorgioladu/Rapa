@@ -140,7 +140,7 @@ def auth(username, password):
 def login_page():
     html_page.header_page()
     print """
-
+    <section id="container">
     <div class="login">
     <h1>Login</h1>
     <form method="post" action="login.pyo">
@@ -151,7 +151,7 @@ def login_page():
                 </div>
                 <div class="input-group">
                   <span class="input-group-addon"><i class="fa fa-key fa-fw" aria-hidden="true"></i></span>
-                  <input class="form-control" id="password" name="password" placeholder="Password" required="required">
+                  <input class="form-control" type="password" id="password" name="password" placeholder="Password" required="required">
                 </div>       
  
  """
@@ -165,6 +165,7 @@ def login_page():
            </div>
      </form>
     </div>
+    </section>
  """
     html_page.footer_page()
 

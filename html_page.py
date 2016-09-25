@@ -55,14 +55,17 @@ def header_page():
 
 def footer_page():
     print """
-    <div class="alert alert-info" role="alert"> 
-    <strong> All rights reserved. <i class="fa fa-copyright" aria-hidden="true"></i> 
-    &nbsp; &sdot; &nbsp; Powered by <a href="https://github.com/giorgioladu/Rapa" > R.A.Pa </strong>  </a>
-    &nbsp;&sdot;&nbsp; Design by
-    <a href="https://www.facebook.com/giorgio.ladu" aria-label="giorgio.ladu">
-	 <i class="fa fa-facebook-square m-blau" aria-hidden="true"></i>
-	</a>            
-      <a href="https://www.facebook.com/giorgio.ladu" >Giorgio Ladu</a>
+    <footer class="footer">
+          <div>           
+            <strong> All rights reserved. <i class="fa fa-copyright" aria-hidden="true"></i> 
+            &nbsp; &sdot; &nbsp; Powered by <a href="https://github.com/giorgioladu/Rapa" > R.A.Pa </strong>  </a>
+            &nbsp;&sdot;&nbsp; Design by
+            <a href="https://www.facebook.com/giorgio.ladu" aria-label="giorgio.ladu">
+             <i class="fa fa-facebook-square m-blau" aria-hidden="true"></i>
+            </a>            
+              <a href="https://www.facebook.com/giorgio.ladu" >Giorgio Ladu</a>             
+         </div>
+    </footer>
     """
     print config.custom_footer_html_message
     print """     </div>
