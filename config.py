@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #  ping.py                                           # # # # # # # # # #
@@ -22,7 +21,8 @@
 ##
 
 
-import ConfigParser, os
+import ConfigParser
+import os
 
 config = ConfigParser.ConfigParser()
 config.read('rapa.cnf')
@@ -39,14 +39,18 @@ node_longitude = config.get('Node', 'longitude')
 node_mac = config.get('Node', 'mac')
 node_name = config.get('Node', 'name')
 node_ip = config.get('Node', 'ip')
-node_port = config.get('Node', 'port')
+node_port = config.getint('Node', 'port')
 
 radius_server = config.get('Radius', 'server')
 radius_secret = config.get('Radius', 'secret')
 radius_dictionary = config.get('Radius', 'dictionary')
 
 custom_url = config.get('Custom', 'url')
-custom_nas_port = config.get('Custom', 'nas_port')
-custom_nas_port_type = config.get('Custom', 'nas_port_type')
+custom_nas_port = config.getint('Custom', 'nas_port')
+custom_nas_port_type = config.getint('Custom', 'nas_port_type')
+custom_url = config.get('Custom', 'url')
+custom_wispr_location_id = config.get('Custom', 'wispr_location_id')
+custom_wispr_location_name = config.get('Custom', 'wispr_location_name')
+custom_footer_html_message = config.get('Custom', 'footer_html_message')
 
-
+session_session_expiry = config.get('Session', 'session_expiry')

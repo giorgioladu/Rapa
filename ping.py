@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #  ping.py                                           # # # # # # # # # #
@@ -18,37 +17,46 @@
 # limitations under the License.
 #
 # # # # # # #
-## 06.09.2016 V. 1.06
-##  * Added mysql
+# 06.09.2016 V. 1.06
+# * Added mysql
 
-import MySQLdb, cgi
+import MySQLdb
+import cgi
 import config
 
 form = cgi.FieldStorage()
 gw_wifidog_uptime = form.getvalue("wifidog_uptime", 0)
-gw_sys_load = form.getvalue("sys_load",0)
-gw_sys_memfree = form.getvalue("sys_memfree",0)# gateway adress
-gw_sys_uptime = form.getvalue("sys_uptime", 0 )
-gw_id = form.getvalue("gw_id","gw_id")
+gw_sys_load = form.getvalue("sys_load", 0)
+gw_sys_memfree = form.getvalue("sys_memfree", 0)  # gateway adress
+gw_sys_uptime = form.getvalue("sys_uptime", 0)
+gw_id = form.getvalue("gw_id", "gw_id")
 
 print 'Pong'
 
 
-database = MySQLdb.connect(host=config.mysql_server, port=int(config.mysql_port), user=config.mysql_user, passwd=config.mysql_password, db=config.mysql_database)
+database = MySQLdb.connect(
+    host=config.mysql_server,
+    port=int(
+        config.mysql_port),
+    user=config.mysql_user,
+    passwd=config.mysql_password,
+    db=config.mysql_database)
 
 cursor = database.cursor()
 
-sql = "UPDATE "+config.mysql_database_table +" SET `time`=NOW(),`uptime`=\""+str(gw_sys_uptime)+"\" ,`memfree`=\""+str(gw_sys_memfree)+"\",`cpu`=\""+str(gw_sys_load)+"\" WHERE `mac` = \""+str(config.node_mac)+"\""
+sql = "UPDATE " + config.mysql_database_table + " SET `time`=NOW(),`uptime`=\"" + str(gw_sys_uptime) + "\" ,`memfree`=\"" + \
+    str(gw_sys_memfree) + "\",`cpu`=\"" + str(gw_sys_load) + "\" WHERE `mac` = \"" + str(config.node_mac) + "\""
 
 try:
-   cursor.execute(sql)
-   data = cursor.rowcount
-   if (cursor.rowcount <= 0):
-       sql = "INSERT INTO "+config.mysql_database_table +"  (`time`, `name`, `latitude`, `longitude`, `mac`, `uptime`, `memfree`, `cpu`) VALUES ( NOW() , \""+str(config.node_name)+"\", \""+str(config.node_latitude)+"\", \""+str(config.node_longitude)+"\", \""+str(config.node_mac)+"\", \""+str(gw_sys_uptime)+"\", \""+str(gw_sys_memfree)+"\", \""+str(gw_sys_load)+"\" )"
-       cursor.execute(sql)
-       database.commit()
-except MySQLdb.Warning, e:
-   # Rollback in case there is any error
+    cursor.execute(sql)
+    data = cursor.rowcount
+    if (cursor.rowcount <= 0):
+        sql = "INSERT INTO " + config.mysql_database_table + "  (`time`, `name`, `latitude`, `longitude`, `mac`, `uptime`, `memfree`, `cpu`) VALUES ( NOW() , \"" + str(config.node_name) + "\", \"" + str(
+            config.node_latitude) + "\", \"" + str(config.node_longitude) + "\", \"" + str(config.node_mac) + "\", \"" + str(gw_sys_uptime) + "\", \"" + str(gw_sys_memfree) + "\", \"" + str(gw_sys_load) + "\" )"
+        cursor.execute(sql)
+        database.commit()
+except MySQLdb.Warning as e:
+    # Rollback in case there is any error
     print ""
 finally:
     database.close()

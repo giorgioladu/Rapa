@@ -1,26 +1,42 @@
 [Mysql]
-server: 192.168.0.1
+server: 192.168.XX.XX
 port: 3306
-user:  radius
-password: password
+user:  *****
+password: *****
 DB: radius
 ## node table used for get statistcs of multiple wifidog gateway
-table: node #see Table node structure
+table: node
 
 [Node]
-latitude = 39
-longitude = 9
-mac = XX:XX:XX:XX:XX:XX
-name = XXXXXXXXXXXX
-ip = 192.168.1.1
-port = 2060
+latitude:123
+longitude: 123.35
+mac: XX:XX:XX:XX:XX:XX
+name: XXXXXXXXXX
+ip: 192.168.XX.XX
+port: 2060
 
 [Radius]
-server: 192.168.0.1 # radius server
-secret: secrets  # radius secret key
-dictionary: /usr/share/freeradius2/dictionary # radius dictionary
+server: 192.168.XX.XX
+secret: XXXXXXXXXXXX
+dictionary: /usr/share/freeradius2/dictionary
 
 [Custom]
 url: www.google.com
 nas_port: 29
-nas_port_type: Wireless - IEEE 802.22
+# Wireless Regional Area Networks (WRAN), IEEE Standard, IEEE 802.22, Work in Progress.
+nas_port_type: 29
+# WISPr-Location-Name = "Icon_Test"
+wispr_location_name: Rapa_Net
+# WISPr-Location-ID = "isocc=,cc=,ac=,network=Icon_Test"
+# WISPr settings (to form a proper WISPr-Location-Id)
+# HS_LOC_NETWORK="My Network"      # Network name
+# HS_LOC_AC=408                    # Phone area code
+# HS_LOC_CC=1                      # Phone country code
+# HS_LOC_ISOCC=US                  # ISO Country code
+wispr_location_id: isocc=it,cc=39,ac=02,network=Rapa_Net
+footer_html_message: "Rapa_Net"
+
+[Session]
+#many seconds of inactivity.
+session_expiry: 43200
+

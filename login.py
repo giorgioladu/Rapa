@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #  login.py                                          # # # # # # # # # #
@@ -18,29 +17,34 @@
 # limitations under the License.
 #
 # # # # # # #
-## 08.09.2016 V. 1.08
+# 08.09.2016 V. 1.08
 ##
 
 import pyrad.packet
 import cgi
 import sys
+import os
 import time
 from pyrad.client import Client
 from pyrad.dictionary import Dictionary
 import store
 import html_page
 import config
+import cgitb #debug
+cgitb.enable()
+
 
 form = cgi.FieldStorage()
 mac = form.getvalue("mac", "00:00:00:00")
-ip = form.getvalue("ip","0.0.0.0")
-gw_address = form.getvalue("gw_address",config.node_ip)
-gw_port = form.getvalue("gw_port",config.node_port)
-gw_id = form.getvalue("gw_id",config.node_name)
-url = form.getvalue("url",config.custom_url )
+ip = form.getvalue("ip", "0.0.0.0")
+gw_address = form.getvalue("gw_address", config.node_ip)
+gw_port = form.getvalue("gw_port", config.node_port)
+gw_id = form.getvalue("gw_id", config.node_name)
+url = form.getvalue("url", config.custom_url)
 token = form.getfirst("token", None)  # None
-user = form.getfirst("username")
-passwd = form.getfirst("password")
+user = form.getfirst("username", None)
+passwd = form.getfirst("password", None)
+user_agent = cgi.escape( os.environ[ "HTTP_USER_AGENT" ] )
 
 
 ACCOUNT_STATUS_ERROR = -1
@@ -52,7 +56,7 @@ ACCOUNT_STATUS_LOCKED = 254
 
 radius_config = {
     'server': config.radius_server,  # radius server
-    'secret': config.radius_secret ,  # radius secret key
+    'secret': config.radius_secret,  # radius secret key
     'dict': Dictionary(config.radius_dictionary),
 }
 
@@ -78,24 +82,37 @@ def auth(username, password):
     req = srv.CreateAuthPacket(
         code=pyrad.packet.AccessRequest,
         User_Name=username)
+
     req["Acct-Status-Type"] = "Start"
     req["User-Password"] = req.PwCrypt(password)
+
     req["NAS-IP-Address"] = gw_address
-    
     req["NAS-Port"] = config.custom_nas_port
     req["NAS-Port-Type"] = config.custom_nas_port_type
-    
-    req["NAS-Identifier"] =  gw_id
+    # MAC OF WIFIDOG "00-10-A4-23-19-C0"
+    req["NAS-Identifier"] = config.node_mac
+
     req["Acct-Session-Id"] = token
-    req["Service-Type"] =  pyrad.packet.AccessRequest
-    req["Acct-Delay-Time"] = 0
+    # MAC OF WIFIDOG "00-10-A4-23-19-C0"
+    req["Called-Station-Id"] = config.node_mac
+    # MAC OF USER OR IP "00-00-B4-23-19-C0"
+    req["Calling-Station-Id"] = mac
     req["Framed-IP-Address"] = ip
-    
-    req["Called-Station-Id"] = config.node_mac #MAC OF WIFIDOG"00-10-A4-23-19-C0"
-    req["Calling-Station-Id"] = mac #MAC OF USER OR IP "00-00-B4-23-19-C0"
+    req["Service-Type"] = pyrad.packet.AccessRequest
+    req["Acct-Delay-Time"] = 0
+    req["Acct-Input-Octets"] = 0
+    req["Acct-Output-Octets"] = 0
+    # WISPr-Location-ID = "isocc=,cc=,ac=,network=Coova,Wicoin_Test"
+    req["WISPr-Location-ID"] = str(config.custom_wispr_location_id)
+    # WISPr-Location-Name = "Wicoin_Test"
+    req["WISPr-Location-Name"] = str(config.custom_wispr_location_name)
+    # http://7.0.0.1:2060/wifidog/auth?logout=1&token=4f473ae3ddc5c1c2165f7a0973c57a98
+    req["WISPr-Logoff-URL"] = "http://" + str(gw_address) + ':' + str(
+        gw_port) + "/wifidog/auth?logout=1&token=" + str(token)
+
     reply = SendPacket(srv=srv, req=req)
     auth_message = reply.code
-    
+
     if reply.code == pyrad.packet.AccessAccept:
         store_data["auth"] = True
         store_data["username"] = username
@@ -106,7 +123,11 @@ def auth(username, password):
         for i in reply.keys():
             store_data[i] = reply[i][0]
     elif reply.code == pyrad.packet.AccessReject:
-        store_data["auth_message"] = " User Access Reject "
+        if "Reply-Message" in reply:
+            store_data["auth_message"] = " User Access Reject -" + \
+                str(reply["Reply-Message"][0])
+        else:
+            store_data["auth_message"] = " User Access Reject "
         store_data["auth_response"] = reply.code
     else:
         store_data[
@@ -120,58 +141,54 @@ def login_page():
     html_page.header_page()
     print """
 
- <div class="login">
+    <div class="login">
     <h1>Login</h1>
-    <form method="post" action="login.py">
-        <input type="text" id="username" name="username" placeholder="Username" required="required" />
-        <input type="password" id="password" name="password" placeholder="Password" required="required" />"""
+    <form method="post" action="login.pyo">
+            <div class="form-group"  >
+               <div class="input-group margin-bottom-sm">
+                  <span class="input-group-addon"><i class="fa fa-user fa-fw" aria-hidden="true"></i></span>
+                  <input class="form-control" type="text" id="username" name="username" placeholder="Username" required="required">
+                </div>
+                <div class="input-group">
+                  <span class="input-group-addon"><i class="fa fa-key fa-fw" aria-hidden="true"></i></span>
+                  <input class="form-control" id="password" name="password" placeholder="Password" required="required">
+                </div>       
+ 
+ """
     print '<input type="hidden" id="gw_address" name="gw_address" value="' + str(gw_address) + '"/>'
     print '<input type="hidden" id="gw_port" name="gw_port" value="' + str(gw_port) + '"/>'
     print '<input type="hidden" id="gw_id" name="gw_id" value="' + str(gw_id) + '"/>'
     print '<input type="hidden" id="mac" name="mac" value="' + str(mac) + '"/>'
     print '<input type="hidden" id="url" name="url" value="' + str(url) + '"/>'
     print """<br>
-     <button type="submit" class="btn btn-primary btn-block btn-large" class="rbutton" >Let me in.</button>
+                <button class="btn btn-success" type="submit"> <i class="fa fa-unlock fa-fw"></i> Let me in. </button>
+           </div>
      </form>
-     <script type="text/javascript">
-    $('.rbutton').on('click',function() {
-    $(this).prop("disabled",true);
-});
-    </script>
     </div>
  """
     html_page.footer_page()
 
-if "generate_204" in url:
-    print 'HTTP/1.1 204 No Content'
-    print ''
+#if "Android 4" in user_agent:
+    #print 'HTTP/1.1 204 No Content'
+    #print ''
+    #sys.exit(0)
+
+if "wispr" in user_agent:
+    success_apple()
     sys.exit(0)
 
+
 if "success.html" in url:
-    print 'HTTP/1.1 200 OK'
-    print """
-        <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
-        <HTML>
-        <HEAD>
-                <TITLE>Success</TITLE>
-        </HEAD>
-        <BODY>
-        Success
-        </BODY>
-        </HTML>
-  """
-    print ''
+    success_apple()
+    sys.exit(0)
+
+if "hotspot-detect.html" in url:
+    success_apple()
     sys.exit(0)
 
 if url.find("ncsi.txt") != -1:
     print 'HTTP/1.1 200 OK'
     print 'Microsoft NCSI'
-    print ''
-    sys.exit(0)
-
-if url.find("connect") != -1:
-    print 'HTTP/1.1 200 OK'
-    print 'OK'
     print ''
     sys.exit(0)
 

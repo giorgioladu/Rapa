@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
 #  store.py                                          # # # # # # # # # #
@@ -20,6 +19,7 @@
 # # # # # # #
 
 from django.conf import settings
+import config
 
 try:
     # Django versions >= 1.9
@@ -29,7 +29,9 @@ except ImportError:
     from django.utils.importlib import import_module
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.file'
-SESSION_EXPIRY = 720 #12h
+#many seconds of inactivity.
+SESSION_EXPIRY = config.session_session_expiry
+
 
 def store():
     settings.configure()
